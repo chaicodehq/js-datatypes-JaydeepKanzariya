@@ -46,5 +46,44 @@
  *   // grandTotal: 1000 + 0 + 50 - 150 = 900
  */
 export function buildZomatoOrder(cart, coupon) {
-  // Your code here
+  if (!Array.isArray(cart) || cart.length === 0) return null;
+
+  const items = cart
+    .filter((item) => item && item.qty > 0)
+    .map((item) => {
+      const addonTotal = (Array.isArray(item.addons) ? item.addons : []).reduce((sum, addon) => {
+        const addonPrice = parseFloat(String(addon).split(":")[1]);
+        return sum + (Number.isNaN(addonPrice) ? 0 : addonPrice);
+      }, 0);
+
+      return {
+        name: item.name,
+        qty: item.qty,
+        basePrice: item.price,
+        addonTotal,
+        itemTotal: (item.price + addonTotal) * item.qty,
+      };
+    });
+
+  const subtotal = items.reduce((sum, item) => sum + item.itemTotal, 0);
+
+  let deliveryFee;
+  if (subtotal < 500) deliveryFee = 30;
+  else if (subtotal < 1000) deliveryFee = 15;
+  else deliveryFee = 0;
+
+  const gst = parseFloat((subtotal * 0.05).toFixed(2));
+
+  let discount = 0;
+  const code = typeof coupon === "string" ? coupon.toLowerCase() : "";
+  if (code === "first50") discount = Math.min(subtotal * 0.5, 150);
+  else if (code === "flat100") discount = 100;
+  else if (code === "freeship") discount = deliveryFee;
+
+  const grandTotal = parseFloat(Math.max(0, subtotal + deliveryFee + gst - discount).toFixed(2));
+
+  // FREESHIP waives the fee: it is reported as 0 and the waived amount shows up as the discount.
+  const chargedDeliveryFee = code === "freeship" ? 0 : deliveryFee;
+
+  return { items, subtotal, deliveryFee: chargedDeliveryFee, gst, discount, grandTotal };
 }

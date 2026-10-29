@@ -47,5 +47,50 @@
  *   //      frequentContact: "Swiggy", allAbove100: false, hasLargeTransaction: true }
  */
 export function analyzeUPITransactions(transactions) {
-  // Your code here
+  if (!Array.isArray(transactions) || transactions.length === 0) return null;
+
+  const valid = transactions.filter(
+    (txn) =>
+      txn &&
+      (txn.type === "credit" || txn.type === "debit") &&
+      typeof txn.amount === "number" &&
+      txn.amount > 0
+  );
+  if (valid.length === 0) return null;
+
+  const sumOf = (list) => list.reduce((sum, txn) => sum + txn.amount, 0);
+  const totalCredit = sumOf(valid.filter((txn) => txn.type === "credit"));
+  const totalDebit = sumOf(valid.filter((txn) => txn.type === "debit"));
+
+  const highestTransaction = valid.reduce((best, txn) => (txn.amount > best.amount ? txn : best));
+
+  const categoryBreakdown = valid.reduce((totals, txn) => {
+    const current = Object.hasOwn(totals, txn.category) ? totals[txn.category] : 0;
+    totals[txn.category] = current + txn.amount;
+    return totals;
+  }, {});
+
+  const contactCounts = new Map();
+  valid.forEach((txn) => contactCounts.set(txn.to, (contactCounts.get(txn.to) || 0) + 1));
+  let frequentContact;
+  let topCount = 0;
+  contactCounts.forEach((count, contact) => {
+    if (count > topCount) {
+      topCount = count;
+      frequentContact = contact;
+    }
+  });
+
+  return {
+    totalCredit,
+    totalDebit,
+    netBalance: totalCredit - totalDebit,
+    transactionCount: valid.length,
+    avgTransaction: Math.round(sumOf(valid) / valid.length),
+    highestTransaction,
+    categoryBreakdown,
+    frequentContact,
+    allAbove100: valid.every((txn) => txn.amount > 100),
+    hasLargeTransaction: valid.some((txn) => txn.amount >= 5000),
+  };
 }
